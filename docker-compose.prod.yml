@@ -6,7 +6,7 @@ services:
     volumes:
       - backend_db:/app/data
     ports:
-      - "8000:8000"
+      - "8003:8003"
     environment:
       DATABASE_URL: sqlite+aiosqlite:////app/data/daily_tasks.db
     restart: unless-stopped
@@ -16,9 +16,9 @@ services:
       context: ./frontend
       target: production
     ports:
-      - "3000:3000"
+      - "3003:3003"
     environment:
-      NUXT_PUBLIC_API_BASE: http://backend:8000
+      NUXT_PUBLIC_API_BASE: http://localhost:8003
     depends_on:
       - backend
     restart: unless-stopped

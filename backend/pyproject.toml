@@ -3,11 +3,14 @@ name = "daily-tasks-backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
     "alembic>=1.16.5",
+    "bcrypt>=4.0.0",
     "fastapi[standard]>=0.128.8",
+    "pydantic-settings>=2.11.0",
+    "python-jose[cryptography]>=3.5.0",
     "sqlalchemy>=2.0.46",
 ]
 

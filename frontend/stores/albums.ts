@@ -5,6 +5,11 @@ export interface AlbumMusicianInput {
   instrument: string
 }
 
+export interface AlbumPersonnelInput {
+  person_name: string
+  role: string
+}
+
 export interface AlbumCreate {
   title: string
   artist: string
@@ -13,7 +18,9 @@ export interface AlbumCreate {
   record_label?: string | null
   tracks: string[]
   musicians: AlbumMusicianInput[]
+  personnel: AlbumPersonnelInput[]
   collection_id?: number | null
+  mbid?: string | null
 }
 
 export interface Album {
@@ -23,8 +30,10 @@ export interface Album {
   release_year: number | null
   producer: string | null
   record_label: string | null
+  art_path: string | null
   tracks: string[]
   musicians: { musician: { id: number; name: string }; instrument: string }[]
+  personnel: { person: { id: number; name: string }; role: string }[]
   created_at: string
 }
 
@@ -67,7 +76,7 @@ export const useAlbumsStore = defineStore('albums', {
       const { collection_id, ...albumData } = payload
       const album = await apiFetch<Album>('/albums', {
         method: 'POST',
-        body: albumData,
+        body: albumData, // includes mbid if set
       })
       if (collection_id) {
         const collectionsStore = useCollectionsStore()
@@ -95,6 +104,27 @@ export const useAlbumsStore = defineStore('albums', {
       await apiFetch(`/albums/${id}`, { method: 'DELETE' })
       this.albums = this.albums.filter((a) => a.id !== id)
       if (this.current?.id === id) this.current = null
+    },
+
+    async uploadArt(id: number, file: File) {
+      const { apiFetch } = useApi()
+      const form = new FormData()
+      form.append('file', file)
+      const updated = await apiFetch<Album>(`/albums/${id}/art`, {
+        method: 'POST',
+        body: form,
+      })
+      if (this.current?.id === id) this.current = updated
+      const idx = this.albums.findIndex((a) => a.id === id)
+      if (idx !== -1) this.albums[idx] = updated
+    },
+
+    async removeArt(id: number) {
+      const { apiFetch } = useApi()
+      const updated = await apiFetch<Album>(`/albums/${id}/art`, { method: 'DELETE' })
+      if (this.current?.id === id) this.current = updated
+      const idx = this.albums.findIndex((a) => a.id === id)
+      if (idx !== -1) this.albums[idx] = updated
     },
   },
 })

@@ -1,16 +1,25 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.album import Album
 from app.models.user import User
 from app.schemas.album import AlbumCreate, AlbumRead, AlbumUpdate
 from app.schemas.musician import AlbumMusicianEntry, MusicianRead
+from app.schemas.person import AlbumPersonnelEntry, PersonRead
 from app.services import album as album_service
+from app.services.musicbrainz import ALBUM_ART_DIR, download_cover_art
 
 router = APIRouter(prefix="/albums", tags=["albums"])
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_ART_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 def _to_album_read(album) -> AlbumRead:
@@ -22,6 +31,14 @@ def _to_album_read(album) -> AlbumRead:
         for link in album.album_musician_links
         if link._musician_obj is not None
     ]
+    personnel = [
+        AlbumPersonnelEntry(
+            person=PersonRead.model_validate(link._person_obj),
+            role=link.role,
+        )
+        for link in album.album_personnel_links
+        if link._person_obj is not None
+    ]
     return AlbumRead(
         id=album.id,
         title=album.title,
@@ -29,8 +46,10 @@ def _to_album_read(album) -> AlbumRead:
         release_year=album.release_year,
         producer=album.producer,
         record_label=album.record_label.name if album.record_label else None,
+        art_path=album.art_path,
         tracks=album.tracks or [],
         musicians=musicians,
+        personnel=personnel,
         created_at=album.created_at,
     )
 
@@ -63,6 +82,18 @@ async def create_album(
     current_user: User = Depends(get_current_user),
 ):
     album = await album_service.create_album(db, schema)
+
+    if schema.mbid:
+        ext = "jpg"
+        dest = ALBUM_ART_DIR / f"{album.id}.{ext}"
+        downloaded = await download_cover_art(schema.mbid, dest)
+        if downloaded:
+            result = await db.execute(select(Album).where(Album.id == album.id))
+            db_album = result.scalar_one()
+            db_album.art_path = f"{album.id}.{ext}"
+            await db.commit()
+            album = await album_service.get_album_full(db, album.id)  # type: ignore[assignment]
+
     return _to_album_read(album)
 
 
@@ -100,3 +131,67 @@ async def delete_album(
     deleted = await album_service.delete_album(db, album_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+
+@router.post("/{album_id}/art", response_model=AlbumRead)
+async def upload_art(
+    album_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload a cover art image for an album manually."""
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported image type. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}",
+        )
+
+    content = await file.read()
+    if len(content) > MAX_ART_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image too large. Maximum size is 5 MB.",
+        )
+
+    result = await db.execute(select(Album).where(Album.id == album_id))
+    db_album = result.scalar_one_or_none()
+    if db_album is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    ext = (file.content_type or "image/jpeg").split("/")[-1].replace("jpeg", "jpg")
+    filename = f"{album_id}.{ext}"
+    dest = ALBUM_ART_DIR / filename
+    dest.write_bytes(content)
+
+    # Remove old file with a different extension if it exists
+    if db_album.art_path and db_album.art_path != filename:
+        old = ALBUM_ART_DIR / db_album.art_path
+        old.unlink(missing_ok=True)
+
+    db_album.art_path = filename
+    await db.commit()
+
+    album = await album_service.get_album_full(db, album_id)
+    return _to_album_read(album)  # type: ignore[arg-type]
+
+
+@router.delete("/{album_id}/art", response_model=AlbumRead)
+async def delete_art(
+    album_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove the cover art for an album."""
+    result = await db.execute(select(Album).where(Album.id == album_id))
+    db_album = result.scalar_one_or_none()
+    if db_album is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    if db_album.art_path:
+        (ALBUM_ART_DIR / db_album.art_path).unlink(missing_ok=True)
+        db_album.art_path = None
+        await db.commit()
+
+    album = await album_service.get_album_full(db, album_id)
+    return _to_album_read(album)  # type: ignore[arg-type]

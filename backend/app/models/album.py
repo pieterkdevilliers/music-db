@@ -8,6 +8,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
+class AlbumPersonnel(Base):
+    __tablename__ = "album_personnel"
+
+    album_id: Mapped[int] = mapped_column(
+        ForeignKey("albums.id", ondelete="CASCADE"), primary_key=True
+    )
+    person_id: Mapped[int] = mapped_column(
+        ForeignKey("persons.id", ondelete="CASCADE"), primary_key=True
+    )
+    role: Mapped[str] = mapped_column(String, nullable=False, primary_key=True)
+
+
 class AlbumMusician(Base):
     __tablename__ = "album_musicians"
 
@@ -32,6 +44,7 @@ class Album(Base):
         ForeignKey("record_labels.id", ondelete="SET NULL"), nullable=True
     )
     tracks: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    art_path: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -41,6 +54,12 @@ class Album(Base):
         secondary="album_musicians", back_populates="albums"
     )
     album_musician_links: Mapped[list[AlbumMusician]] = relationship(
+        cascade="all, delete-orphan"
+    )
+    personnel: Mapped[list[Person]] = relationship(  # noqa: F821
+        secondary="album_personnel", back_populates="albums"
+    )
+    album_personnel_links: Mapped[list[AlbumPersonnel]] = relationship(
         cascade="all, delete-orphan"
     )
     collections: Mapped[list[Collection]] = relationship(  # noqa: F821

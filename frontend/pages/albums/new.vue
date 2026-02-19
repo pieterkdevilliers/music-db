@@ -2,9 +2,9 @@
   <main class="page">
     <div class="page-header">
       <h1>Add Album</h1>
-      <NuxtLink to="/albums" class="back">← Back</NuxtLink>
+      <NuxtLink :to="backTo" class="back">← Back</NuxtLink>
     </div>
-    <AlbumForm submit-label="Add Album" @submit="createAlbum" />
+    <AlbumForm :initial="initial" submit-label="Add Album" @submit="createAlbum" />
     <p v-if="error" class="error">{{ error }}</p>
   </main>
 </template>
@@ -12,14 +12,19 @@
 <script setup lang="ts">
 import type { AlbumCreate } from '~/stores/albums'
 
+const route = useRoute()
 const albumsStore = useAlbumsStore()
 const error = ref('')
+
+const collectionId = route.query.collection_id ? Number(route.query.collection_id) : null
+const backTo = collectionId ? `/collections/${collectionId}` : '/albums'
+const initial = collectionId ? { collection_id: collectionId } : undefined
 
 async function createAlbum(payload: AlbumCreate) {
   error.value = ''
   try {
     const album = await albumsStore.createAlbum(payload)
-    await navigateTo(`/albums/${album.id}`)
+    await navigateTo(collectionId ? `/collections/${collectionId}` : `/albums/${album.id}`)
   } catch (e: unknown) {
     const err = e as { data?: { detail?: string } }
     error.value = err?.data?.detail ?? 'Failed to create album'

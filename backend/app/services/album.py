@@ -4,10 +4,11 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.album import Album, AlbumMusician
+from app.models.album import Album, AlbumMusician, AlbumPersonnel
 from app.models.musician import Musician
+from app.models.person import Person
 from app.models.record_label import RecordLabel
-from app.schemas.album import AlbumCreate, AlbumMusicianInput, AlbumUpdate
+from app.schemas.album import AlbumCreate, AlbumMusicianInput, AlbumPersonnelInput, AlbumUpdate
 
 
 async def get_or_create_musician(db: AsyncSession, name: str) -> Musician:
@@ -76,6 +77,32 @@ async def get_album_with_relations(db: AsyncSession, album_id: int) -> Album | N
     return album
 
 
+async def get_or_create_person(db: AsyncSession, name: str) -> Person:
+    result = await db.execute(select(Person).where(Person.name == name))
+    person = result.scalar_one_or_none()
+    if person is None:
+        person = Person(name=name)
+        db.add(person)
+        await db.flush()
+    return person
+
+
+async def _set_personnel_links(
+    db: AsyncSession, album: Album, inputs: list[AlbumPersonnelInput]
+) -> None:
+    await db.execute(
+        delete(AlbumPersonnel).where(AlbumPersonnel.album_id == album.id)
+    )
+    for inp in inputs:
+        person = await get_or_create_person(db, inp.person_name)
+        link = AlbumPersonnel(
+            album_id=album.id,
+            person_id=person.id,
+            role=inp.role,
+        )
+        db.add(link)
+
+
 async def _set_musician_links(
     db: AsyncSession, album: Album, inputs: list[AlbumMusicianInput]
 ) -> None:
@@ -110,6 +137,7 @@ async def create_album(db: AsyncSession, schema: AlbumCreate) -> Album:
     await db.flush()
 
     await _set_musician_links(db, album, schema.musicians)
+    await _set_personnel_links(db, album, schema.personnel)
     await db.commit()
     return await get_album_full(db, album.id)  # type: ignore[return-value]
 
@@ -137,6 +165,8 @@ async def update_album(
         album.tracks = schema.tracks
     if schema.musicians is not None:
         await _set_musician_links(db, album, schema.musicians)
+    if schema.personnel is not None:
+        await _set_personnel_links(db, album, schema.personnel)
 
     await db.commit()
     return await get_album_full(db, album.id)  # type: ignore[return-value]
@@ -149,6 +179,7 @@ async def get_album_full(db: AsyncSession, album_id: int) -> Album | None:
         .options(
             selectinload(Album.record_label),
             selectinload(Album.album_musician_links),
+            selectinload(Album.album_personnel_links),
         )
     )
     album = result.scalar_one_or_none()
@@ -160,6 +191,12 @@ async def get_album_full(db: AsyncSession, album_id: int) -> Album | None:
             select(Musician).where(Musician.id == link.musician_id)
         )
         link._musician_obj = m_result.scalar_one_or_none()
+    # Resolve person objects per personnel link
+    for link in album.album_personnel_links:
+        p_result = await db.execute(
+            select(Person).where(Person.id == link.person_id)
+        )
+        link._person_obj = p_result.scalar_one_or_none()
     return album
 
 
@@ -174,6 +211,7 @@ async def list_albums(
     q = select(Album).options(
         selectinload(Album.record_label),
         selectinload(Album.album_musician_links),
+        selectinload(Album.album_personnel_links),
     )
 
     if musician_id is not None:
@@ -210,6 +248,11 @@ async def list_albums(
                 select(Musician).where(Musician.id == link.musician_id)
             )
             link._musician_obj = m_result.scalar_one_or_none()
+        for link in album.album_personnel_links:
+            p_result = await db.execute(
+                select(Person).where(Person.id == link.person_id)
+            )
+            link._person_obj = p_result.scalar_one_or_none()
 
     return albums
 

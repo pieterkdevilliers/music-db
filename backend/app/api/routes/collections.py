@@ -24,6 +24,7 @@ def _to_detail(collection) -> CollectionDetailRead:
             artist=a.artist,
             release_year=a.release_year,
             record_label=a.record_label.name if a.record_label else None,
+            art_path=a.art_path,
         )
         for a in collection.albums
     ]

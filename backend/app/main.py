@@ -2,11 +2,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import router
 from app.db.base import Base
 from app.db.session import engine
+from app.services.musicbrainz import ALBUM_ART_DIR
 import app.models  # noqa: F401 — ensures all models are registered with Base
+
+ALBUM_ART_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
@@ -27,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.mount("/static", StaticFiles(directory=str(ALBUM_ART_DIR)), name="static")
 
 
 @app.get("/")

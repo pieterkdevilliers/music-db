@@ -9,7 +9,7 @@
           </p>
         </div>
         <div class="actions">
-          <NuxtLink to="/albums" class="btn-secondary">+ Add Albums</NuxtLink>
+          <NuxtLink :to="`/albums/new?collection_id=${id}`" class="btn-secondary">+ Add Album</NuxtLink>
           <button class="btn-danger" @click="deleteCollection">Delete</button>
         </div>
       </div>

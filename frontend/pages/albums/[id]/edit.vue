@@ -40,6 +40,10 @@ const initial = computed(() => {
       musician_name: m.musician.name,
       instrument: m.instrument,
     })),
+    personnel: album.personnel.map((p) => ({
+      person_name: p.person.name,
+      role: p.role,
+    })),
   }
 })
 

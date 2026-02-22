@@ -12,6 +12,8 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic-settings>=2.11.0",
     "python-jose[cryptography]>=3.5.0",
+    "mutagen>=1.47.0",
+    "roonapi>=0.1.6",
     "sqlalchemy>=2.0.46",
 ]
 

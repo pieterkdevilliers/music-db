@@ -77,6 +77,18 @@ export const useCollectionsStore = defineStore('collections', {
       await this.fetchCollection(collectionId)
     },
 
+    async deleteAllAlbums(collectionId: number) {
+      const { apiFetch } = useApi()
+      await apiFetch(`/collections/${collectionId}/albums`, { method: 'DELETE' })
+      if (this.current?.id === collectionId) {
+        this.current.albums = []
+      }
+      const idx = this.collections.findIndex((c) => c.id === collectionId)
+      if (idx !== -1) {
+        this.collections[idx] = { ...this.collections[idx], albums: [] }
+      }
+    },
+
     async removeAlbum(collectionId: number, albumId: number) {
       const { apiFetch } = useApi()
       await apiFetch(`/collections/${collectionId}/albums/${albumId}`, {

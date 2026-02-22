@@ -10,7 +10,12 @@
         </div>
         <div class="actions">
           <NuxtLink :to="`/albums/new?collection_id=${id}`" class="btn-secondary">+ Add Album</NuxtLink>
-          <button class="btn-danger" @click="deleteCollection">Delete</button>
+          <button
+            v-if="collectionsStore.current.albums?.length"
+            class="btn-danger btn-outlined"
+            @click="deleteAllAlbums"
+          >Delete all albums</button>
+          <button class="btn-danger" @click="deleteCollection">Delete collection</button>
         </div>
       </div>
 
@@ -44,6 +49,12 @@ async function removeAlbum(albumId: number) {
   await collectionsStore.removeAlbum(id, albumId)
 }
 
+async function deleteAllAlbums() {
+  const count = collectionsStore.current?.albums?.length ?? 0
+  if (!confirm(`Permanently delete all ${count} album${count === 1 ? '' : 's'} in this collection? This cannot be undone.`)) return
+  await collectionsStore.deleteAllAlbums(id)
+}
+
 async function deleteCollection() {
   if (!confirm('Delete this collection?')) return
   await collectionsStore.deleteCollection(id)
@@ -62,6 +73,7 @@ h1 { margin: 0 0 0.25rem; font-size: 1.4rem; }
   border-radius: 4px; padding: 0.45rem 1rem; font-size: 0.875rem;
 }
 .btn-danger { background: #c0392b; color: #fff; border: none; border-radius: 4px; padding: 0.45rem 0.75rem; cursor: pointer; }
+.btn-danger.btn-outlined { background: transparent; border: 1px solid #c0392b; color: #c0392b; }
 .empty { color: #888; margin-top: 2rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
 .album-wrapper { position: relative; }

@@ -6,6 +6,7 @@ services:
     volumes:
       - ./backend:/app
       - backend_db:/app/data
+      - /mnt/roon/FLAC Music:/music:ro
     ports:
       - "8003:8003"
     environment:

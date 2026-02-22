@@ -5,6 +5,7 @@
       <div class="nav-links">
         <NuxtLink to="/collections">Collections</NuxtLink>
         <NuxtLink to="/albums">Albums</NuxtLink>
+        <NuxtLink to="/import">Import</NuxtLink>
       </div>
       <div class="user-menu" v-if="authStore.isAuthenticated">
         <span class="user-email">{{ authStore.user?.email }}</span>

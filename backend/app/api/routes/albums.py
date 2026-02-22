@@ -122,6 +122,16 @@ async def update_album(
     return _to_album_read(album)
 
 
+@router.delete("", status_code=status.HTTP_200_OK)
+async def delete_all_albums(
+    db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+):
+    """Permanently delete every album in the database."""
+    count = await album_service.delete_all_albums(db)
+    return {"deleted": count}
+
+
 @router.delete("/{album_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_album(
     album_id: int,

@@ -98,6 +98,21 @@ async def delete_collection(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
+@router.delete("/{collection_id}/albums", status_code=status.HTTP_200_OK)
+async def delete_all_albums_in_collection(
+    collection_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently delete all albums that belong to this collection."""
+    count = await collection_service.delete_albums_in_collection(
+        db, collection_id, current_user.id
+    )
+    if count == -1:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return {"deleted": count}
+
+
 @router.post(
     "/{collection_id}/albums/{album_id}", status_code=status.HTTP_204_NO_CONTENT
 )

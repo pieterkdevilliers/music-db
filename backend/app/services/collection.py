@@ -114,6 +114,37 @@ async def add_album_to_collection(
     return True
 
 
+async def delete_albums_in_collection(
+    db: AsyncSession, collection_id: int, user_id: int
+) -> int:
+    """Delete all albums that belong to collection_id. Returns count deleted, or -1 if not found."""
+    collection = (await db.execute(
+        select(Collection).where(
+            Collection.id == collection_id, Collection.user_id == user_id
+        )
+    )).scalar_one_or_none()
+    if collection is None:
+        return -1
+
+    album_ids = [
+        row[0] for row in (await db.execute(
+            select(CollectionAlbum.album_id).where(
+                CollectionAlbum.collection_id == collection_id
+            )
+        ))
+    ]
+
+    for album_id in album_ids:
+        album = (await db.execute(
+            select(Album).where(Album.id == album_id)
+        )).scalar_one_or_none()
+        if album:
+            await db.delete(album)
+
+    await db.commit()
+    return len(album_ids)
+
+
 async def remove_album_from_collection(
     db: AsyncSession, collection_id: int, album_id: int, user_id: int
 ) -> bool:

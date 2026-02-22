@@ -265,3 +265,10 @@ async def delete_album(db: AsyncSession, album_id: int) -> bool:
     await db.delete(album)
     await db.commit()
     return True
+
+
+async def delete_all_albums(db: AsyncSession) -> int:
+    """Delete every album in the database. Returns the count deleted."""
+    result = await db.execute(delete(Album))
+    await db.commit()
+    return result.rowcount

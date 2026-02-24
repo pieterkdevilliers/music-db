@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.detail import AlbumDetailEntry
 from app.schemas.musician import AlbumMusicianEntry
 from app.schemas.person import AlbumPersonnelEntry
 
@@ -27,6 +28,11 @@ class AlbumPersonnelInput(BaseModel):
     role: str
 
 
+class AlbumDetailInput(BaseModel):
+    detail_name: str
+    detail_type: str
+
+
 class AlbumCreate(BaseModel):
     title: str
     artist: str
@@ -36,6 +42,7 @@ class AlbumCreate(BaseModel):
     tracks: list[str] = []
     musicians: list[AlbumMusicianInput] = []
     personnel: list[AlbumPersonnelInput] = []
+    other_details: list[AlbumDetailInput] = []
     mbid: str | None = None  # MusicBrainz release ID; triggers art download if set
 
 
@@ -48,6 +55,7 @@ class AlbumUpdate(BaseModel):
     tracks: list[str] | None = None
     musicians: list[AlbumMusicianInput] | None = None
     personnel: list[AlbumPersonnelInput] | None = None
+    other_details: list[AlbumDetailInput] | None = None
 
 
 class AlbumRead(BaseModel):
@@ -63,4 +71,5 @@ class AlbumRead(BaseModel):
     tracks: list[str]
     musicians: list[AlbumMusicianEntry]
     personnel: list[AlbumPersonnelEntry]
+    other_details: list[AlbumDetailEntry]
     created_at: datetime

@@ -5,12 +5,13 @@ services:
       target: dev
     volumes:
       - ./backend:/app
-      - backend_db:/app/data
+      - ./data:/app/data
       - /mnt/roon/FLAC Music:/music:ro
     ports:
       - "8003:8003"
     environment:
       DATABASE_URL: sqlite+aiosqlite:////app/data/daily_tasks.db
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
   frontend:
     build:
@@ -26,5 +27,3 @@ services:
     depends_on:
       - backend
 
-volumes:
-  backend_db:

@@ -15,6 +15,7 @@ dependencies = [
     "mutagen>=1.47.0",
     "roonapi>=0.1.6",
     "sqlalchemy>=2.0.46",
+    "anthropic>=0.83.0",
 ]
 
 [dependency-groups]

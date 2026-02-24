@@ -40,8 +40,21 @@
 
       <div class="actions">
         <NuxtLink :to="`/albums/${id}/edit`" class="btn-secondary">Edit</NuxtLink>
+        <button
+          class="btn-enrich"
+          @click="enrichAlbum"
+          :disabled="enriching"
+          :title="enriching ? enrichmentStore.job.current_album ? `Enriching: ${enrichmentStore.job.current_album}` : 'Enriching…' : 'Enrich with AI'"
+        >
+          {{ enriching ? '…' : 'Enrich' }}
+        </button>
         <button class="btn-danger" @click="deleteAlbum">Delete</button>
       </div>
+    </div>
+
+    <div v-if="enrichNotice" :class="['enrich-notice', `enrich-notice--${enrichNotice.type}`]">
+      {{ enrichNotice.message }}
+      <button class="enrich-notice-close" @click="enrichNotice = null">×</button>
     </div>
 
     <div class="meta-row">
@@ -84,12 +97,32 @@
         </thead>
         <tbody>
           <tr v-for="p in albumsStore.current.personnel" :key="`${p.person.id}-${p.role}`">
-            <td>{{ p.person.name }}</td>
+            <td>
+              <NuxtLink :to="`/persons/${p.person.id}`">{{ p.person.name }}</NuxtLink>
+            </td>
             <td>{{ p.role }}</td>
           </tr>
         </tbody>
       </table>
       <p v-else class="empty">No personnel listed.</p>
+    </div>
+
+    <div class="section">
+      <h2>Other Details</h2>
+      <table v-if="albumsStore.current.other_details.length" class="musicians-table">
+        <thead>
+          <tr><th>Type</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="d in albumsStore.current.other_details" :key="`${d.detail.id}-${d.detail_type}`">
+            <td>{{ d.detail_type }}</td>
+            <td>
+              <NuxtLink :to="`/details/${d.detail.id}`">{{ d.detail.name }}</NuxtLink>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="empty">No other details listed.</p>
     </div>
 
     <div class="section">
@@ -121,15 +154,26 @@
 const route = useRoute()
 const albumsStore = useAlbumsStore()
 const collectionsStore = useCollectionsStore()
+const enrichmentStore = useEnrichmentStore()
 const config = useRuntimeConfig()
 const id = Number(route.params.id)
 const selectedCollection = ref<number | null>(null)
 const uploading = ref(false)
+const enrichNotice = ref<{ type: 'success' | 'error'; message: string } | null>(null)
+
+const enriching = computed(
+  () => ['running', 'starting'].includes(enrichmentStore.job.status)
+)
 
 onMounted(async () => {
   await albumsStore.fetchAlbum(id)
   await collectionsStore.fetchCollections()
+  // Restore in-progress enrichment if page refreshed mid-job
+  await enrichmentStore.pollProgress()
+  if (enriching.value) enrichmentStore.startPolling()
 })
+
+onUnmounted(() => enrichmentStore.stopPolling())
 
 const artUrl = computed(() => {
   const path = albumsStore.current?.art_path
@@ -143,6 +187,30 @@ const albumCollections = computed(() =>
 const availableCollections = computed(() =>
   collectionsStore.collections.filter((c) => !c.albums.some((a) => a.id === id))
 )
+
+async function enrichAlbum() {
+  enrichNotice.value = null
+  try {
+    await enrichmentStore.enrichAlbum(id)
+    // Watch for completion and reload album data
+    const stop = watch(
+      () => enrichmentStore.job.status,
+      async (status) => {
+        if (status === 'done') {
+          stop()
+          await albumsStore.fetchAlbum(id)
+          enrichNotice.value = { type: 'success', message: 'Enrichment complete.' }
+        } else if (status === 'error') {
+          stop()
+          enrichNotice.value = { type: 'error', message: enrichmentStore.job.error_list.at(-1) ?? 'Enrichment failed.' }
+        }
+      }
+    )
+  } catch (e: unknown) {
+    const err = e as { data?: { detail?: string } }
+    enrichNotice.value = { type: 'error', message: err?.data?.detail ?? 'Failed to start enrichment.' }
+  }
+}
 
 async function deleteAlbum() {
   if (!confirm('Delete this album?')) return
@@ -196,6 +264,22 @@ h1 { margin: 0; font-size: 1.5rem; }
   border-radius: 4px; padding: 0.4rem 0.75rem; font-size: 0.875rem;
 }
 .btn-danger { background: #c0392b; color: #fff; border: none; border-radius: 4px; padding: 0.4rem 0.75rem; cursor: pointer; }
+.btn-enrich {
+  background: #8e44ad; color: #fff; border: none; border-radius: 4px;
+  padding: 0.4rem 0.75rem; cursor: pointer; font-size: 0.875rem;
+}
+.btn-enrich:disabled { opacity: 0.6; cursor: not-allowed; }
+.enrich-notice {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+.enrich-notice--success { background: #eafaf1; border: 1px solid #a9dfbf; color: #1e8449; }
+.enrich-notice--error { background: #fdedec; border: 1px solid #f5b7b1; color: #c0392b; }
+.enrich-notice-close {
+  background: none; border: none; cursor: pointer; font-size: 1rem; line-height: 1;
+  color: inherit; padding: 0 0.1rem; margin-left: 0.5rem;
+}
 
 /* Cover art */
 .art-block { position: relative; flex-shrink: 0; }

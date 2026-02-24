@@ -122,6 +122,14 @@
           </select>
         </div>
 
+        <div class="toggle-row">
+          <label class="toggle-label">
+            <input type="checkbox" v-model="roonAutoEnrich" />
+            Auto-enrich albums after import
+          </label>
+          <span class="toggle-hint">Uses Claude AI to populate musicians, personnel, and other details.</span>
+        </div>
+
         <div v-if="roonJob.status !== 'running' && roonJob.status !== 'starting'" class="import-actions">
           <button
             class="btn-import"
@@ -216,6 +224,14 @@
             <option :value="null">— none —</option>
             <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label">
+            <input type="checkbox" v-model="flacAutoEnrich" />
+            Auto-enrich albums after import
+          </label>
+          <span class="toggle-hint">Uses Claude AI to populate musicians, personnel, and other details.</span>
         </div>
       </section>
 
@@ -347,6 +363,8 @@ async function fetchCollections() {
 const LS_ROON_HOST = 'import.roon.host'
 const LS_ROON_PORT = 'import.roon.port'
 const LS_FLAC_PATH = 'import.flac.path'
+const LS_ROON_AUTO_ENRICH = 'import.roon.auto_enrich'
+const LS_FLAC_AUTO_ENRICH = 'import.flac.auto_enrich'
 
 // ── Roon ───────────────────────────────────────────────────────────────────
 const host = ref('')
@@ -363,6 +381,7 @@ const probeError = ref('')
 const probeResult = ref<Record<string, unknown> | null>(null)
 
 const roonSelectedCollectionId = ref<number | null>(null)
+const roonAutoEnrich = ref(false)
 const roonImportStarting = ref(false)
 const roonCancelling = ref(false)
 const roonJob = ref<ImportJob>({
@@ -472,7 +491,10 @@ async function startRoonImport() {
   try {
     await apiFetch('/import/roon/start', {
       method: 'POST',
-      body: { collection_id: roonSelectedCollectionId.value },
+      body: {
+        collection_id: roonSelectedCollectionId.value,
+        auto_enrich: roonAutoEnrich.value,
+      },
     })
     await fetchRoonProgress()
     startRoonPolling()
@@ -500,6 +522,7 @@ async function cancelRoonImport() {
 // ── Files ──────────────────────────────────────────────────────────────────
 const flacPath = ref('')
 const flacSelectedCollectionId = ref<number | null>(null)
+const flacAutoEnrich = ref(false)
 const flacImportStarting = ref(false)
 const flacCancelling = ref(false)
 const flacJob = ref<ImportJob>({
@@ -558,6 +581,7 @@ async function startFlacImport() {
       body: {
         root_path: flacPath.value.trim(),
         collection_id: flacSelectedCollectionId.value,
+        auto_enrich: flacAutoEnrich.value,
       },
     })
     await fetchFlacProgress()
@@ -608,11 +632,15 @@ onMounted(async () => {
   host.value = localStorage.getItem(LS_ROON_HOST) ?? ''
   port.value = Number(localStorage.getItem(LS_ROON_PORT) ?? 9330)
   flacPath.value = localStorage.getItem(LS_FLAC_PATH) ?? ''
+  roonAutoEnrich.value = localStorage.getItem(LS_ROON_AUTO_ENRICH) === 'true'
+  flacAutoEnrich.value = localStorage.getItem(LS_FLAC_AUTO_ENRICH) === 'true'
 
   // Save on change
   watch(host, (v) => localStorage.setItem(LS_ROON_HOST, v))
   watch(port, (v) => localStorage.setItem(LS_ROON_PORT, String(v)))
   watch(flacPath, (v) => localStorage.setItem(LS_FLAC_PATH, v))
+  watch(roonAutoEnrich, (v) => localStorage.setItem(LS_ROON_AUTO_ENRICH, String(v)))
+  watch(flacAutoEnrich, (v) => localStorage.setItem(LS_FLAC_AUTO_ENRICH, String(v)))
 
   await Promise.all([refreshStatus(), fetchCollections()])
   // Restore in-progress jobs if the page is refreshed mid-import
@@ -744,6 +772,17 @@ code { background: #f3f3f3; padding: 0.1rem 0.3rem; border-radius: 3px; font-siz
   font-family: monospace;
 }
 .path-input:disabled { background: #f5f5f5; color: #aaa; }
+
+/* Auto-enrich toggle */
+.toggle-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 0.75rem; flex-wrap: wrap;
+}
+.toggle-label {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.875rem; cursor: pointer; font-weight: 500;
+}
+.toggle-hint { font-size: 0.8rem; color: #888; }
 
 /* Collection picker */
 .collection-row {

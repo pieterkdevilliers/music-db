@@ -22,6 +22,7 @@ router = APIRouter(prefix="/import/flac", tags=["import"])
 class StartImportRequest(BaseModel):
     root_path: str
     collection_id: int | None = None
+    auto_enrich: bool = False
 
 
 @router.post("/start", status_code=status.HTTP_202_ACCEPTED)
@@ -69,6 +70,7 @@ async def start_import(
             AsyncSessionLocal,
             root_path=root_path,
             collection_id=body.collection_id,
+            auto_enrich=body.auto_enrich,
         )
     )
 

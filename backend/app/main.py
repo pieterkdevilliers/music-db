@@ -5,8 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import router
-from app.db.base import Base
-from app.db.session import engine
 from app.services.musicbrainz import ALBUM_ART_DIR
 import app.models  # noqa: F401 — ensures all models are registered with Base
 
@@ -15,8 +13,6 @@ ALBUM_ART_DIR.mkdir(parents=True, exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     yield
 
 

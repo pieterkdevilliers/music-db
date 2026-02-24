@@ -40,6 +40,9 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Database
+data/
+
 # OS
 .DS_Store
 Thumbs.db

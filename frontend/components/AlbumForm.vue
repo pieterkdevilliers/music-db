@@ -82,6 +82,10 @@
       <label>Personnel</label>
       <PersonnelTagInput v-model="form.personnel" />
     </div>
+    <div class="field">
+      <label>Other Details</label>
+      <OtherDetailsTagInput v-model="form.other_details" />
+    </div>
     <div v-if="!hideCollectionPicker" class="field">
       <label>Add to Collection</label>
       <select v-model="form.collection_id">
@@ -136,6 +140,7 @@ const form = ref<AlbumCreate>({
   tracks: props.initial?.tracks ?? [],
   musicians: props.initial?.musicians ?? [],
   personnel: props.initial?.personnel ?? [],
+  other_details: props.initial?.other_details ?? [],
   collection_id: props.initial?.collection_id ?? null,
   mbid: null,
 })

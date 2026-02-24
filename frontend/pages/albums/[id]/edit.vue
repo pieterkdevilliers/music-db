@@ -44,6 +44,10 @@ const initial = computed(() => {
       person_name: p.person.name,
       role: p.role,
     })),
+    other_details: album.other_details.map((d) => ({
+      detail_name: d.detail.name,
+      detail_type: d.detail_type,
+    })),
   }
 })
 

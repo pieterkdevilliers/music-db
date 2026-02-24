@@ -10,6 +10,11 @@ export interface AlbumPersonnelInput {
   role: string
 }
 
+export interface AlbumDetailInput {
+  detail_name: string
+  detail_type: string
+}
+
 export interface AlbumCreate {
   title: string
   artist: string
@@ -19,6 +24,7 @@ export interface AlbumCreate {
   tracks: string[]
   musicians: AlbumMusicianInput[]
   personnel: AlbumPersonnelInput[]
+  other_details: AlbumDetailInput[]
   collection_id?: number | null
   mbid?: string | null
 }
@@ -34,6 +40,7 @@ export interface Album {
   tracks: string[]
   musicians: { musician: { id: number; name: string }; instrument: string }[]
   personnel: { person: { id: number; name: string }; role: string }[]
+  other_details: { detail: { id: number; name: string }; detail_type: string }[]
   created_at: string
 }
 

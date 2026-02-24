@@ -27,6 +27,7 @@ class ConnectRequest(BaseModel):
 
 class StartImportRequest(BaseModel):
     collection_id: int | None = None
+    auto_enrich: bool = False
 
 
 @router.post("/connect", status_code=status.HTTP_202_ACCEPTED)
@@ -141,7 +142,11 @@ async def start_import(
 
     roon_service.reset_import_job(collection_id=body.collection_id)
     asyncio.create_task(
-        roon_service.run_import(AsyncSessionLocal, collection_id=body.collection_id)
+        roon_service.run_import(
+            AsyncSessionLocal,
+            collection_id=body.collection_id,
+            auto_enrich=body.auto_enrich,
+        )
     )
 
     return {"status": "starting"}

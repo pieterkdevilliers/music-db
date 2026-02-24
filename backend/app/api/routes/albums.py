@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.album import Album
 from app.models.user import User
 from app.schemas.album import AlbumCreate, AlbumRead, AlbumUpdate
+from app.schemas.detail import AlbumDetailEntry, DetailRead
 from app.schemas.musician import AlbumMusicianEntry, MusicianRead
 from app.schemas.person import AlbumPersonnelEntry, PersonRead
 from app.services import album as album_service
@@ -39,6 +40,14 @@ def _to_album_read(album) -> AlbumRead:
         for link in album.album_personnel_links
         if link._person_obj is not None
     ]
+    other_details = [
+        AlbumDetailEntry(
+            detail=DetailRead.model_validate(link._detail_obj),
+            detail_type=link.detail_type,
+        )
+        for link in album.album_detail_links
+        if link._detail_obj is not None
+    ]
     return AlbumRead(
         id=album.id,
         title=album.title,
@@ -50,6 +59,7 @@ def _to_album_read(album) -> AlbumRead:
         tracks=album.tracks or [],
         musicians=musicians,
         personnel=personnel,
+        other_details=other_details,
         created_at=album.created_at,
     )
 

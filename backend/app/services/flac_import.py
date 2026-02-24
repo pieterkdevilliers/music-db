@@ -197,6 +197,7 @@ async def run_import(
     session_factory,
     root_path: str,
     collection_id: int | None = None,
+    auto_enrich: bool = False,
 ) -> None:
     """Scan root_path for audio files and import albums into the database."""
     from app.models.album import Album
@@ -348,6 +349,17 @@ async def run_import(
                 # MusicBrainz art fallback — only if no local art was found
                 if not has_art:
                     await _mb_art_fallback(album_id_val, title, artist)
+
+                # AI enrichment (optional)
+                if auto_enrich:
+                    try:
+                        from app.services.enrichment import enrich_album
+                        async with session_factory() as db:
+                            await enrich_album(db, album_id_val)
+                    except Exception as enrich_exc:
+                        logger.warning(
+                            "File import: enrichment failed for '%s': %s", title, enrich_exc
+                        )
 
             except Exception as exc:
                 logger.warning("File import: failed directory '%s': %s", dir_path, exc)

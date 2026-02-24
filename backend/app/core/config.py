@@ -10,5 +10,8 @@ class Settings(BaseSettings):
     roon_host: str = ""
     roon_port: int = 9330
 
+    # Anthropic API key for AI enrichment
+    anthropic_api_key: str = ""
+
 
 settings = Settings()

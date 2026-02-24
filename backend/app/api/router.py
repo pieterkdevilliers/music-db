@@ -1,6 +1,17 @@
 from fastapi import APIRouter
 
-from app.api.routes import albums, auth, collections, flac_import, musicians, musicbrainz, persons, roon_import
+from app.api.routes import (
+    albums,
+    auth,
+    collections,
+    details,
+    enrichment,
+    flac_import,
+    musicians,
+    musicbrainz,
+    persons,
+    roon_import,
+)
 
 router = APIRouter()
 
@@ -10,5 +21,7 @@ router.include_router(albums.router)
 router.include_router(musicians.router)
 router.include_router(musicbrainz.router)
 router.include_router(persons.router)
+router.include_router(details.router)
+router.include_router(enrichment.router)
 router.include_router(roon_import.router)
 router.include_router(flac_import.router)

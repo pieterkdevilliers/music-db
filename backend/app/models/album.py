@@ -8,6 +8,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
+class AlbumDetail(Base):
+    __tablename__ = "album_details"
+
+    album_id: Mapped[int] = mapped_column(
+        ForeignKey("albums.id", ondelete="CASCADE"), primary_key=True
+    )
+    detail_id: Mapped[int] = mapped_column(
+        ForeignKey("details.id", ondelete="CASCADE"), primary_key=True
+    )
+    detail_type: Mapped[str] = mapped_column(String, nullable=False, primary_key=True)
+
+
 class AlbumPersonnel(Base):
     __tablename__ = "album_personnel"
 
@@ -60,6 +72,12 @@ class Album(Base):
         secondary="album_personnel", back_populates="albums"
     )
     album_personnel_links: Mapped[list[AlbumPersonnel]] = relationship(
+        cascade="all, delete-orphan"
+    )
+    details: Mapped[list[Detail]] = relationship(  # noqa: F821
+        secondary="album_details", back_populates="albums"
+    )
+    album_detail_links: Mapped[list[AlbumDetail]] = relationship(
         cascade="all, delete-orphan"
     )
     collections: Mapped[list[Collection]] = relationship(  # noqa: F821

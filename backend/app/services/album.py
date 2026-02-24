@@ -4,11 +4,12 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.album import Album, AlbumMusician, AlbumPersonnel
+from app.models.album import Album, AlbumDetail, AlbumMusician, AlbumPersonnel
+from app.models.detail import Detail
 from app.models.musician import Musician
 from app.models.person import Person
 from app.models.record_label import RecordLabel
-from app.schemas.album import AlbumCreate, AlbumMusicianInput, AlbumPersonnelInput, AlbumUpdate
+from app.schemas.album import AlbumCreate, AlbumDetailInput, AlbumMusicianInput, AlbumPersonnelInput, AlbumUpdate
 
 
 async def get_or_create_musician(db: AsyncSession, name: str) -> Musician:
@@ -87,6 +88,16 @@ async def get_or_create_person(db: AsyncSession, name: str) -> Person:
     return person
 
 
+async def get_or_create_detail(db: AsyncSession, name: str) -> Detail:
+    result = await db.execute(select(Detail).where(Detail.name == name))
+    detail = result.scalar_one_or_none()
+    if detail is None:
+        detail = Detail(name=name)
+        db.add(detail)
+        await db.flush()
+    return detail
+
+
 async def _set_personnel_links(
     db: AsyncSession, album: Album, inputs: list[AlbumPersonnelInput]
 ) -> None:
@@ -119,6 +130,22 @@ async def _set_musician_links(
         db.add(link)
 
 
+async def _set_detail_links(
+    db: AsyncSession, album: Album, inputs: list[AlbumDetailInput]
+) -> None:
+    await db.execute(
+        delete(AlbumDetail).where(AlbumDetail.album_id == album.id)
+    )
+    for inp in inputs:
+        detail = await get_or_create_detail(db, inp.detail_name)
+        link = AlbumDetail(
+            album_id=album.id,
+            detail_id=detail.id,
+            detail_type=inp.detail_type,
+        )
+        db.add(link)
+
+
 async def create_album(db: AsyncSession, schema: AlbumCreate) -> Album:
     label_id: int | None = None
     if schema.record_label:
@@ -138,6 +165,7 @@ async def create_album(db: AsyncSession, schema: AlbumCreate) -> Album:
 
     await _set_musician_links(db, album, schema.musicians)
     await _set_personnel_links(db, album, schema.personnel)
+    await _set_detail_links(db, album, schema.other_details)
     await db.commit()
     return await get_album_full(db, album.id)  # type: ignore[return-value]
 
@@ -167,6 +195,8 @@ async def update_album(
         await _set_musician_links(db, album, schema.musicians)
     if schema.personnel is not None:
         await _set_personnel_links(db, album, schema.personnel)
+    if schema.other_details is not None:
+        await _set_detail_links(db, album, schema.other_details)
 
     await db.commit()
     return await get_album_full(db, album.id)  # type: ignore[return-value]
@@ -180,6 +210,7 @@ async def get_album_full(db: AsyncSession, album_id: int) -> Album | None:
             selectinload(Album.record_label),
             selectinload(Album.album_musician_links),
             selectinload(Album.album_personnel_links),
+            selectinload(Album.album_detail_links),
         )
     )
     album = result.scalar_one_or_none()
@@ -197,6 +228,12 @@ async def get_album_full(db: AsyncSession, album_id: int) -> Album | None:
             select(Person).where(Person.id == link.person_id)
         )
         link._person_obj = p_result.scalar_one_or_none()
+    # Resolve detail objects per detail link
+    for link in album.album_detail_links:
+        d_result = await db.execute(
+            select(Detail).where(Detail.id == link.detail_id)
+        )
+        link._detail_obj = d_result.scalar_one_or_none()
     return album
 
 
@@ -212,6 +249,7 @@ async def list_albums(
         selectinload(Album.record_label),
         selectinload(Album.album_musician_links),
         selectinload(Album.album_personnel_links),
+        selectinload(Album.album_detail_links),
     )
 
     if musician_id is not None:
@@ -253,6 +291,11 @@ async def list_albums(
                 select(Person).where(Person.id == link.person_id)
             )
             link._person_obj = p_result.scalar_one_or_none()
+        for link in album.album_detail_links:
+            d_result = await db.execute(
+                select(Detail).where(Detail.id == link.detail_id)
+            )
+            link._detail_obj = d_result.scalar_one_or_none()
 
     return albums
 
